@@ -1,16 +1,22 @@
-// State Management
+// --- STATE MANAGEMENT ---
 let materials = JSON.parse(localStorage.getItem('materials')) || [];
 let products = JSON.parse(localStorage.getItem('products')) || [];
 let currentRecipe = []; // Temporary holding for the product being built
 
-// --- INITIALIZATION ---
+// --- INITIALIZATION (Run this when page loads) ---
 window.onload = function() {
-    renderMaterials();
-    updateMaterialSelect();
-    renderProducts();
+    renderMaterials();       // Draw the inventory table
+    updateMaterialSelect();  // FIX: This fills the dropdown menu!
+    renderProducts();        // Draw the dashboard
+    updateWallet();          // Update the business wallet totals
+    
+    // Restore saved inputs
+    const savedExp = localStorage.getItem('extraExpenses') || 0;
+    const expInput = document.getElementById('extraExpenses');
+    if(expInput) expInput.value = savedExp;
 };
 
-// --- FUNCTIONS: INVENTORY ---
+// --- SECTION 1: INVENTORY FUNCTIONS ---
 
 function addMaterial() {
     const name = document.getElementById('matName').value;
@@ -25,17 +31,16 @@ function addMaterial() {
         id: Date.now(),
         name: name,
         costPerUnit: costPerUnit,
-        // We now save these so we can "Edit" them later!
-        originalPrice: price,
-        originalQty: qty
+        originalPrice: price, // Saved for editing
+        originalQty: qty      // Saved for editing
     };
 
     materials.push(newMat);
     saveData();
-    renderMaterials();
-    updateMaterialSelect();
     
-    // Clear inputs
+    // REFRESH EVERYTHING
+    renderMaterials();
+    updateMaterialSelect(); // <--- This ensures the dropdown updates immediately
     clearInventoryInputs();
 }
 
@@ -47,16 +52,17 @@ function clearInventoryInputs() {
 
 function renderMaterials() {
     const tbody = document.querySelector('#materialTable tbody');
+    if(!tbody) return; // Safety check
+    
     tbody.innerHTML = '';
     
     materials.forEach(m => {
-        // Create the row with Edit and Delete buttons
         const row = `<tr>
             <td>${m.name}</td>
             <td>₱${m.costPerUnit.toFixed(2)}</td>
             <td>
-                <button class="action-btn btn-edit" onclick="editMaterial(${m.id})" title="Edit">✎</button>
-                <button class="action-btn btn-delete" onclick="deleteMaterial(${m.id})" title="Delete">×</button>
+                <button class="action-btn btn-edit" onclick="editMaterial(${m.id})">✎</button>
+                <button class="action-btn btn-delete" onclick="deleteMaterial(${m.id})">×</button>
             </td>
         </tr>`;
         tbody.innerHTML += row;
@@ -65,44 +71,48 @@ function renderMaterials() {
 
 function deleteMaterial(id) {
     if(!confirm("Are you sure you want to delete this material?")) return;
-    
-    // Remove the item with this specific ID
     materials = materials.filter(m => m.id !== id);
-    
     saveData();
     renderMaterials();
-    updateMaterialSelect();
+    updateMaterialSelect(); // Update dropdown so deleted items disappear
 }
 
 function editMaterial(id) {
-    // 1. Find the material
     const material = materials.find(m => m.id === id);
     if (!material) return;
 
-    // 2. Put the values back into the input boxes
+    // Load values back to inputs
     document.getElementById('matName').value = material.name;
     
-    // Check if we have old data (from before we updated the code)
     if (material.originalPrice) {
         document.getElementById('matPrice').value = material.originalPrice;
         document.getElementById('matQty').value = material.originalQty;
     } else {
-        // If it's an old item, we just show 0 and user has to re-enter
         document.getElementById('matPrice').value = 0;
         document.getElementById('matQty').value = 1;
-        alert("This is an old item. Please re-enter Price and Qty.");
+        alert("Old item detected. Please re-enter Price and Qty.");
     }
 
-    // 3. Remove it from the list (so when you click Add, it doesn't duplicate)
+    // Remove old item so it doesn't duplicate when we click Add
     deleteMaterial(id); 
-    
-    // 4. Focus the cursor on the name field so you can type immediately
     document.getElementById('matName').focus();
 }
 
-// Keep the rest of your code (updateMaterialSelect, Product Builder, etc.) exactly the same.
+// --- THIS IS THE MISSING LINK ---
+function updateMaterialSelect() {
+    const select = document.getElementById('prodMatSelect');
+    if(!select) return; // Safety check
+    
+    select.innerHTML = '<option value="">Select Material...</option>';
+    
+    materials.forEach(m => {
+        // Add each material to the dropdown
+        select.innerHTML += `<option value="${m.id}">${m.name} (₱${m.costPerUnit.toFixed(2)})</option>`;
+    });
+}
 
-// --- FUNCTIONS: PRODUCT BUILDER ---
+// --- SECTION 2: PRODUCT BUILDER ---
+
 function addMaterialToRecipe() {
     const matId = document.getElementById('prodMatSelect').value;
     const qty = parseFloat(document.getElementById('prodMatQty').value);
@@ -139,28 +149,34 @@ function renderCurrentRecipe() {
     costSpan.innerText = total.toFixed(2);
 }
 
-// Add an event listener to update the labor cost preview in real-time
-document.getElementById('laborTime').addEventListener('input', updateLaborPreview);
-document.getElementById('laborRate').addEventListener('input', updateLaborPreview);
+// LABOR INPUT PREVIEW
+// We use simple checks to ensure elements exist before adding listeners
+const laborTimeInput = document.getElementById('laborTime');
+const laborRateInput = document.getElementById('laborRate');
+
+if(laborTimeInput && laborRateInput) {
+    laborTimeInput.addEventListener('input', updateLaborPreview);
+    laborRateInput.addEventListener('input', updateLaborPreview);
+}
 
 function updateLaborPreview() {
     const mins = parseFloat(document.getElementById('laborTime').value) || 0;
     const rate = parseFloat(document.getElementById('laborRate').value) || 0;
     const laborCost = (mins / 60) * rate;
-    document.getElementById('laborCostDisplay').innerText = laborCost.toFixed(2);
+    const display = document.getElementById('laborCostDisplay');
+    if(display) display.innerText = laborCost.toFixed(2);
 }
 
 function saveProduct() {
     const name = document.getElementById('prodName').value;
     const sellingPrice = parseFloat(document.getElementById('prodSellingPrice').value);
-    const materialCost = parseFloat(document.getElementById('currentCost').innerText); // This comes from materials
+    const materialCost = parseFloat(document.getElementById('currentCost').innerText);
 
-    // New Labor Logic
+    // Calculate Labor
     const mins = parseFloat(document.getElementById('laborTime').value) || 0;
     const rate = parseFloat(document.getElementById('laborRate').value) || 0;
     const laborCost = (mins / 60) * rate;
 
-    // Validation
     if (!name || !sellingPrice || (currentRecipe.length === 0 && laborCost === 0)) {
         return alert("Please fill in Name, Price, and at least Materials OR Labor.");
     }
@@ -172,9 +188,9 @@ function saveProduct() {
     const newProduct = {
         id: Date.now(),
         name,
-        materialCost, // Raw material cost
-        laborCost,    // Labor cost
-        totalCost,    // Sum of both
+        materialCost,
+        laborCost,
+        totalCost,
         sellingPrice,
         profit,
         margin
@@ -188,14 +204,21 @@ function saveProduct() {
     document.getElementById('prodName').value = '';
     document.getElementById('prodSellingPrice').value = '';
     document.getElementById('prodMatQty').value = '';
-    document.getElementById('laborTime').value = ''; // Reset labor
-    document.getElementById('laborCostDisplay').innerText = '0.00';
+    document.getElementById('laborTime').value = '';
+    
+    const laborDisplay = document.getElementById('laborCostDisplay');
+    if(laborDisplay) laborDisplay.innerText = '0.00';
+    
     currentRecipe = [];
     renderCurrentRecipe();
 }
 
+// --- SECTION 3: DASHBOARD & WALLET ---
+
 function renderProducts() {
     const tbody = document.getElementById('auditTable');
+    if(!tbody) return;
+
     tbody.innerHTML = '';
 
     products.forEach((p, index) => {
@@ -205,14 +228,22 @@ function renderProducts() {
         if (p.margin >= 50) { marginClass = 'margin-high'; barColor = '#10b981'; } 
         else if (p.margin >= 30) { marginClass = 'margin-med'; barColor = '#f97316'; }
 
-        let barWidth = p.margin > 100 ? 100 : (p.margin < 0 ? 0 : p.margin);
+        // Sanitize values for bar width
+        let barWidth = p.margin;
+        if(barWidth > 100) barWidth = 100;
+        if(barWidth < 0) barWidth = 0;
+
+        // Safely handle old data that might not have laborCost saved
+        const labor = p.laborCost || 0;
+        const mat = p.materialCost || 0;
+        const total = p.totalCost || (mat + labor); // Fallback
 
         const row = `<tr>
             <td>
                 <strong>${p.name}</strong><br>
-                <span style="font-size:0.75em; color:#64748b">Mat: ₱${p.materialCost.toFixed(0)} | Labor: ₱${p.laborCost.toFixed(0)}</span>
+                <span style="font-size:0.75em; color:#64748b">Mat: ₱${mat.toFixed(0)} | Lab: ₱${labor.toFixed(0)}</span>
             </td>
-            <td style="color: #64748b">₱${p.totalCost.toFixed(2)}</td>
+            <td style="color: #64748b">₱${total.toFixed(2)}</td>
             <td>₱${p.sellingPrice.toFixed(2)}</td>
             <td style="font-weight:600">₱${p.profit.toFixed(2)}</td>
             <td>
@@ -226,7 +257,6 @@ function renderProducts() {
         tbody.innerHTML += row;
     });
 
-    // Whenever we render the table, we also update the Business Wallet
     updateWallet();
 }
 
@@ -238,17 +268,6 @@ function deleteProduct(index) {
     }
 }
 
-function saveData() {
-    localStorage.setItem('materials', JSON.stringify(materials));
-    localStorage.setItem('products', JSON.stringify(products));
-}
-
-// --- BUSINESS WALLET LOGIC ---
-
-// Load saved expenses if they exist
-let savedExpenses = localStorage.getItem('extraExpenses') || 0;
-document.getElementById('extraExpenses').value = savedExpenses;
-
 function updateWallet() {
     // 1. Calculate Totals from Products
     let totalRev = 0;
@@ -256,20 +275,33 @@ function updateWallet() {
 
     products.forEach(p => {
         totalRev += p.sellingPrice;
-        totalCost += p.totalCost;
+        // Handle fallback for old data
+        const tCost = p.totalCost || (p.materialCost + (p.laborCost || 0));
+        totalCost += tCost;
     });
 
-    // 2. Get Extra Expenses (Shipping/Delivery)
-    const extraExp = parseFloat(document.getElementById('extraExpenses').value) || 0;
+    // 2. Get Extra Expenses
+    const expInput = document.getElementById('extraExpenses');
+    const extraExp = expInput ? (parseFloat(expInput.value) || 0) : 0;
 
-    // 3. Save expenses so they don't disappear on refresh
+    // 3. Save expenses
     localStorage.setItem('extraExpenses', extraExp);
 
-    // 4. Calculate Final Net Profit
+    // 4. Calculate Net
     const netProfit = totalRev - totalCost - extraExp;
 
-    // 5. Update HTML
-    document.getElementById('totalRevenue').innerText = totalRev.toFixed(2);
-    document.getElementById('totalProductCost').innerText = totalCost.toFixed(2);
-    document.getElementById('netBusinessProfit').innerText = netProfit.toFixed(2);
+    // 5. Update UI (Check if elements exist first)
+    const elRev = document.getElementById('totalRevenue');
+    const elCost = document.getElementById('totalProductCost');
+    const elNet = document.getElementById('netBusinessProfit');
+
+    if(elRev) elRev.innerText = totalRev.toFixed(2);
+    if(elCost) elCost.innerText = totalCost.toFixed(2);
+    if(elNet) elNet.innerText = netProfit.toFixed(2);
+}
+
+// --- UTILS ---
+function saveData() {
+    localStorage.setItem('materials', JSON.stringify(materials));
+    localStorage.setItem('products', JSON.stringify(products));
 }
