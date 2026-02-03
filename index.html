@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIY Audit Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>DIY Business Audit Tool</h1>
+
+    <div class="grid">
+        <div class="card">
+            <h2>1. Inventory (Raw Materials)</h2>
+            <p class="subtitle">Enter items you buy in bulk (e.g., 100 pack wires).</p>
+            
+            <div class="form-group">
+                <label>Material Name</label>
+                <input type="text" id="matName" placeholder="e.g., Fuzzy Wires (Pack)">
+            </div>
+            <div class="grid-inner">
+                <div class="form-group">
+                    <label>Total Price (₱)</label>
+                    <input type="number" id="matPrice" placeholder="200">
+                </div>
+                <div class="form-group">
+                    <label>Qty in Pack</label>
+                    <input type="number" id="matQty" placeholder="100">
+                </div>
+            </div>
+            <button onclick="addMaterial()">Add to Inventory</button>
+
+            <h3>Your Materials</h3>
+            <div class="scroll-list">
+                <table id="materialTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Cost</th>
+                            <th>Action</th> 
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>2. Create Product</h2>
+            <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" id="prodName" placeholder="e.g., Tulip Bouquet">
+            </div>
+
+            <div class="material-selector-box">
+                <label>Add Materials to this Product:</label>
+                <div class="selector-controls">
+                    <select id="prodMatSelect"></select>
+                    <input type="number" id="prodMatQty" placeholder="Qty" class="qty-input">
+                </div>
+                <button class="secondary small-btn" onclick="addMaterialToRecipe()">+ Add Item</button>
+                
+                <div id="currentRecipeList" class="recipe-list">
+                    </div>
+                <p><strong>Total Material Cost: ₱<span id="currentCost">0.00</span></strong></p>
+            </div>
+
+            <div class="form-group" style="background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px solid #ffedd5; margin-top: 15px;">
+    <label style="color: #9a3412;">Labor / Time Spent</label>
+    <div class="grid-inner">
+        <div>
+            <label style="font-size: 0.8rem;">Time (Minutes)</label>
+            <input type="number" id="laborTime" placeholder="e.g. 30">
+        </div>
+        <div>
+            <label style="font-size: 0.8rem;">Hourly Rate (₱)</label>
+            <input type="number" id="laborRate" value="60" placeholder="60">
+        </div>
+    </div>
+    <p style="font-size: 0.85rem; margin-top: 5px; color: #9a3412;">
+        Labor Cost: <strong>₱<span id="laborCostDisplay">0.00</span></strong>
+    </p>
+</div>
+
+            <div class="form-group mt-15">
+                <label>Selling Price (₱)</label>
+                <input type="number" id="prodSellingPrice" placeholder="0.00">
+            </div>
+
+            <button onclick="saveProduct()">Save Product Audit</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>3. Audit Dashboard</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Material Cost</th>
+                        <th>Selling Price</th>
+                        <th>Net Profit</th>
+                        <th>Margin</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="auditTable">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+<div class="card">
+    <h2>4. Business Wallet</h2>
+    <p class="subtitle">Real-time breakdown of your business earnings.</p>
+    
+    <div class="wallet-grid">
+        
+        <div class="stat-card stat-revenue">
+            <span class="stat-label">📈 Total Sales</span>
+            <span class="stat-value">₱<span id="totalRevenue">0.00</span></span>
+        </div>
+
+        <div class="stat-card stat-cost">
+            <span class="stat-label">🛠️ Product Costs (Mat + Labor)</span>
+            <span class="stat-value">-₱<span id="totalProductCost">0.00</span></span>
+        </div>
+
+        <div class="stat-card stat-expense">
+            <span class="stat-label">🚚 Other Fees (Shipping/Delivery)</span>
+            <div class="expense-input-group">
+                <span style="font-weight: bold; margin-right: 5px;">-₱</span>
+                <input type="number" id="extraExpenses" class="expense-input" placeholder="0" oninput="updateWallet()">
+            </div>
+        </div>
+
+        <div class="stat-card stat-profit">
+            <span class="stat-label">💰 Real Take-Home Profit</span>
+            <span class="stat-value" style="font-size: 2.5rem;">₱<span id="netBusinessProfit">0.00</span></span>
+        </div>
+
+    </div>
+</div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
